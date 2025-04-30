@@ -1,0 +1,96 @@
+services:
+  apisix-dashboard: # APISIX Dashboard 服务
+    image: apache/apisix-dashboard:3.0.0-alpine # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - ./dashboard_conf/conf.yaml:/usr/local/apisix-dashboard/conf/conf.yaml # 挂载配置文件
+    ports:
+      - "9000:9000" # 映射端口 9000
+    networks:
+      apisix: # 使用 apisix 网络
+
+  apisix: # APISIX 服务
+    image: apache/apisix:${APISIX_IMAGE_TAG:-3.2.0-debian} # 使用的镜像，支持环境变量
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - ./apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro # 挂载只读配置文件
+    depends_on:
+      - etcd # 依赖 etcd 服务
+    ##network_mode: host # 可选的网络模式（注释掉）
+    ports:
+      - "9180:9180/tcp" # 映射端口 9180
+      - "9080:9080/tcp" # 映射端口 9080
+      - "9091:9091/tcp" # 映射端口 9091
+      - "9443:9443/tcp" # 映射端口 9443
+      - "9092:9092/tcp" # 映射端口 9092
+    networks:
+      apisix: # 使用 apisix 网络
+
+  etcd: # etcd 服务
+    image: bitnami/etcd:3.4.15 # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - etcd_data:/bitnami/etcd # 挂载数据卷
+    environment:
+      ETCD_ENABLE_V2: "true" # 启用 etcd v2 API
+      ALLOW_NONE_AUTHENTICATION: "yes" # 允许无认证访问
+      ETCD_ADVERTISE_CLIENT_URLS: "http://etcd:2379" # 广播的客户端访问地址
+      ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379" # 监听的客户端访问地址
+    ports:
+      - "2379:2379/tcp" # 映射端口 2379
+    networks:
+      apisix: # 使用 apisix 网络
+
+  web1: # Web1 服务
+    image: nginx:1.19.0-alpine # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - ./upstream/web1.conf:/etc/nginx/nginx.conf # 挂载 Nginx 配置文件
+    ports:
+      - "9081:80/tcp" # 映射端口 9081 到容器的 80 端口
+    environment:
+      - NGINX_PORT=80 # 设置环境变量 NGINX_PORT
+    networks:
+      apisix: # 使用 apisix 网络
+
+  web2: # Web2 服务
+    image: nginx:1.19.0-alpine # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - ./upstream/web2.conf:/etc/nginx/nginx.conf # 挂载 Nginx 配置文件
+    ports:
+      - "9082:80/tcp" # 映射端口 9082 到容器的 80 端口
+    environment:
+      - NGINX_PORT=80 # 设置环境变量 NGINX_PORT
+    networks:
+      apisix: # 使用 apisix 网络
+
+  prometheus: # Prometheus 服务
+    image: prom/prometheus:v2.25.0 # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    volumes:
+      - ./prometheus_conf/prometheus.yml:/etc/prometheus/prometheus.yml # 挂载 Prometheus 配置文件
+    ports:
+      - "9090:9090" # 映射端口 9090
+    networks:
+      apisix: # 使用 apisix 网络
+
+  grafana: # Grafana 服务
+    image: grafana/grafana:7.3.7 # 使用的镜像
+    restart: always # 容器重启策略为始终重启
+    ports:
+      - "3000:3000" # 映射端口 3000
+    volumes:
+      - "./grafana_conf/provisioning:/etc/grafana/provisioning" # 挂载 Grafana 配置文件
+      - "./grafana_conf/dashboards:/var/lib/grafana/dashboards" # 挂载 Grafana 仪表盘文件
+      - "./grafana_conf/config/grafana.ini:/etc/grafana/grafana.ini" # 挂载 Grafana 主配置文件
+    networks:
+      apisix: # 使用 apisix 网络
+
+networks:
+  apisix: # 定义 apisix 网络
+    driver: bridge # 使用 bridge 驱动
+
+volumes:
+  etcd_data: # 定义 etcd 数据卷
+    driver: local # 使用本地驱动

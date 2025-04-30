@@ -1,0 +1,36 @@
+# APISIX 配置文件
+apisix:
+  node_listen: 9080              # APISIX 监听端口
+  enable_ipv6: false             # 是否启用 IPv6
+
+  enable_control: true           # 是否启用控制接口
+  control:
+    ip: "0.0.0.0"                # 控制接口监听的 IP 地址
+    port: 9092                   # 控制接口监听的端口
+
+deployment:
+  admin:
+    allow_admin:                 # http://nginx.org/en/docs/http/ngx_http_access_module.html#allow
+                                 # 我们需要为安全性限制 IP 访问规则。0.0.0.0/0 仅用于测试。
+      - 0.0.0.0/0
+
+    admin_key:
+      - name: "admin"            # 管理员名称
+        key: edd1c9f034335f136f87ad84b625c8f1  # 管理员密钥
+        role: admin              # admin: 管理所有配置数据
+
+      - name: "viewer"           # 查看者名称
+        key: 4054f7cf07e344346cd3f287985e76a2  # 查看者密钥
+        role: viewer             # viewer: 仅查看权限
+
+  etcd:
+    host:                           # 可以定义同一 etcd 集群的多个 etcd 主机地址。
+      - "http://etcd:2379"          # 多个 etcd 地址
+    prefix: "/apisix"               # apisix 配置的前缀
+    timeout: 30                     # 超时时间为 30 秒
+
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: "0.0.0.0"                # Prometheus 插件导出地址的 IP
+      port: 9091                   # Prometheus 插件导出地址的端口
